@@ -2,7 +2,7 @@
 # often use a base of 1000 instead of 1024, and even then they are often smaller
 # than advertised. The number below is based on a conservative target of 7.9GB
 # (that's mathematical GB, base 1000), converted to MiB, rounding down.
-MENDER_STORAGE_TOTAL_SIZE_MB=30000
+MENDER_STORAGE_TOTAL_SIZE_MB=30136
 
 # Use all there is, which gets us almost, but not quite, to 500MiB free space
 # (about 480MiB at the time of writing).
