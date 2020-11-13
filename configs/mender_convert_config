@@ -173,7 +173,7 @@ MENDER_COPY_BOOT_GAP="y"
 #
 # This variable directly mirrors the variable from the Yocto Project, which is
 # why it is missing a "MENDER_" prefix.
-IMAGE_ROOTFS_SIZE="0"
+IMAGE_ROOTFS_SIZE="-1"
 
 # The amount of extra free space requested on the rootfs, in KiB. This is added
 # to the value of IMAGE_ROOTFS_SIZE. The size is further modified by
