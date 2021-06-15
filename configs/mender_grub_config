@@ -3,6 +3,10 @@
 # Only disable this if you know what you are doing
 MENDER_GRUB_EFI_INTEGRATION=y
 
+# Version of GRUB to use. Note that there needs to be a precompiled version
+# available at the MENDER_STORAGE_URL download source.
+GRUB_VERSION=2.04
+
 # Specific Linux kernel boot arguments
 #
 # Typically you would read the content of /proc/cmdline on a "golden image"
@@ -13,7 +17,7 @@ MENDER_GRUB_EFI_INTEGRATION=y
 MENDER_GRUB_KERNEL_BOOT_ARGS=""
 
 # grub-mender-grubenv is the Mender integration for the GRUB bootloader
-MENDER_GRUBENV_VERSION="1.3.0"
+MENDER_GRUBENV_VERSION="aa7e8f8c76c6aca6dca1820aaa42dc2cbf9762a1"
 MENDER_GRUBENV_URL="${MENDER_GITHUB_ORG}/grub-mender-grubenv/archive/${MENDER_GRUBENV_VERSION}.tar.gz"
 
 # Name of the storage device containing root filesystem partitions in GRUB
@@ -22,17 +26,17 @@ MENDER_GRUB_STORAGE_DEVICE=hd0
 
 # Type of kernel (bzImage or zImage)
 #
-# mender-convert will try to determinate this value on its own, only set this
+# mender-convert will try to determine this value on its own, only set this
 # if was not possible to auto-detect
 MENDER_GRUB_KERNEL_IMAGETYPE=""
 
 # Type of initrd image
 #
-# mender-convert will try to determinate this value on its own, only set this
+# mender-convert will try to determine this value on its own, only set this
 # if was not possible to auto-detect
 MENDER_GRUB_INITRD_IMAGETYPE=""
 
-MENDER_GRUB_BINARY_STORAGE_URL="${MENDER_STORAGE_URL}/mender-convert/grub-efi/2.04"
+MENDER_GRUB_BINARY_STORAGE_URL="${MENDER_STORAGE_URL}/grub-mender-grubenv/grub-efi/${GRUB_VERSION}-grub-mender-grubenv-${MENDER_GRUBENV_VERSION}"
 
 # Ignore broken UEFI support in certain U-Boot versions (see MEN-2404)
 MENDER_IGNORE_UBOOT_BROKEN_UEFI="0"

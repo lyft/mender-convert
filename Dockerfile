@@ -1,6 +1,6 @@
 # Build pxz in separate image to avoid big image size
-FROM ubuntu:19.04 AS build
-RUN apt-get update && apt-get install -y \
+FROM ubuntu:20.04 AS build
+RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential \
     git \
     liblzma-dev
@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y \
 RUN git clone https://github.com/jnovy/pxz.git /root/pxz
 RUN cd /root/pxz && make
 
-FROM ubuntu:19.04
+FROM ubuntu:20.04
 
-ARG MENDER_ARTIFACT_VERSION=3.2.1
+ARG MENDER_ARTIFACT_VERSION=master
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
 # For 'ar' command to unpack .deb
     binutils \
     xz-utils \
@@ -21,8 +21,9 @@ RUN apt-get update && apt-get install -y \
     file \
 # to copy files between rootfs directories
     rsync \
-# to generate partition table
+# to generate partition table and alter partitions
     parted \
+    gdisk \
 # mkfs.ext4 and family
     e2fsprogs \
 # mkfs.xfs and family
@@ -32,7 +33,7 @@ RUN apt-get update && apt-get install -y \
     sudo \
 # mkfs.vfat (required for boot partition)
     dosfstools \
-# to download mender-artifact
+# to download Mender binaries
     wget \
 # to download mender-grub-env
     git \
@@ -42,8 +43,15 @@ RUN apt-get update && apt-get install -y \
     udev \
 # to create bmap index file (MENDER_USE_BMAP)
     bmap-tools \
+# to regenerate the U-Boot boot.scr on platforms that need customization
+    u-boot-tools \
 # needed to run pxz
-    libgomp1
+    libgomp1  \
+# zip and unzip archive
+    zip  \
+    unzip \
+# manipulate binary and hex
+    xxd
 
 COPY --from=build /root/pxz/pxz /usr/bin/pxz
 
@@ -57,7 +65,7 @@ RUN chmod 0440 /etc/sudoers.d/secure_path_override
 # removed.
 RUN sed -i -e 's/,metadata_csum//' /etc/mke2fs.conf
 
-RUN wget -q -O /usr/bin/mender-artifact https://d1b0l86ne08fsf.cloudfront.net/mender-artifact/$MENDER_ARTIFACT_VERSION/linux/mender-artifact \
+RUN wget -q -O /usr/bin/mender-artifact https://downloads.mender.io/mender-artifact/$MENDER_ARTIFACT_VERSION/linux/mender-artifact \
     && chmod +x /usr/bin/mender-artifact
 
 WORKDIR /

@@ -32,8 +32,20 @@ MENDER_ARTIFACT_COMPRESSION="gzip"
 # this.
 MENDER_ENABLE_SYSTEMD=y
 
+# Custom mkfs options for creating the rootfs partition
+MENDER_ROOT_PART_MKFS_OPTS=""
+
+# Set the fstab options for mounting the root partition
+MENDER_ROOT_PART_FSTAB_OPTS="defaults"
+
+# Set to 0 to disable fsck; recommended for read-only rootfs
+MENDER_ROOT_PART_FS_PASSNO="1"
+
 # Set the fstab options for mounting the data partition
 MENDER_DATA_PART_FSTAB_OPTS="defaults"
+
+# Custom mkfs options for creating the data partition
+MENDER_DATA_PART_MKFS_OPTS=""
 
 # The file system will be grown to occupy the full block device. If the file
 # system is already at maximum size, no action will be performed.
@@ -65,6 +77,17 @@ MENDER_DATA_PART_GROWFS=y
 # input disk image
 MENDER_DEVICE_TYPE=""
 
+# A string that defines the filenames of the deployed files.This is optional.
+# If no DEPLOY_IMAGE_NAME is defined the filenames will be a combination off
+# the date and the names of all DEVICE_TYPES.
+# These will be seperated with a +.
+DEPLOY_IMAGE_NAME=""
+
+# The partition scheme to use for the converted image.
+# To override set this to "gpt" or "dos" (the scheme names used by fdisk and partx).
+# By default mender-convert will use the partition scheme from the input image.
+MENDER_PARTITION_SCHEME=""
+
 # Total size of the physical storage medium that mender partitioned images
 # will be written to, expressed in MiB. The size of rootfs partition will be
 # calculated automatically by subtracting the sizes of boot
@@ -90,14 +113,42 @@ MENDER_DATA_PART_SIZE_MB="128"
 # Default is 8MB
 MENDER_PARTITION_ALIGNMENT="8388608"
 
+# Install Mender client
+#
+MENDER_CLIENT_INSTALL="y"
+
 # Mender client version
 #
 # This is used to fetch the correct binaries
-MENDER_CLIENT_VERSION="master"
+#
+# Valid values are "latest" (default), "master" or a specific version
+MENDER_CLIENT_VERSION="latest"
+
+# Install Mender Connect addon
+#
+MENDER_ADDON_CONNECT_INSTALL="n"
+
+# Mender Connect addon version
+#
+# Valid values are "latest" (default), "master" or a specific version
+MENDER_ADDON_CONNECT_VERSION="latest"
+
+# Install Mender Configure addon
+#
+MENDER_ADDON_CONFIGURE_INSTALL="n"
+
+# Mender Configure addon version
+#
+# Valid values are "latest" (default), "master" or a specific version
+MENDER_ADDON_CONFIGURE_VERSION="latest"
 
 # File storage, containing binary files, do not modify this unless you know
 # what you are doing.
-MENDER_STORAGE_URL="https://d1b0l86ne08fsf.cloudfront.net"
+MENDER_STORAGE_URL="https://downloads.mender.io"
+
+# Mender APT repo, containing binary files, do not modify this unless you know
+# what you are doing.
+MENDER_APT_REPO_URL="${MENDER_STORAGE_URL}/repos/debian"
 
 # Mender GitHub organization URL prefix
 MENDER_GITHUB_ORG="https://github.com/mendersoftware"
@@ -116,6 +167,21 @@ MENDER_ROOTFS_PART_B_NUMBER="3"
 
 # Partition number of persistent data partition
 MENDER_DATA_PART_NUMBER="4"
+
+# Use partition uuids rather than device and partition numbers
+MENDER_ENABLE_PARTUUID="n"
+
+# Partition used as the boot partition.
+MENDER_BOOT_PART=""
+
+# Partition used as the first (A) rootfs partition.
+MENDER_ROOTFS_PART_A=""
+
+# Partition used as the first (B) rootfs partition.
+MENDER_ROOTFS_PART_B=""
+
+# Partition used as the persistent data partition.
+MENDER_DATA_PART=""
 
 # Basename of DTB that should be loaded by the bootloader.
 MENDER_DTB_NAME=kernel.dtb
@@ -178,18 +244,19 @@ source configs/mender_grub_config
 # You might want to override this to e.g provide state-scripts or providing
 # a private key to sign your artifact.
 mender_create_artifact() {
-  local -r device_type="${1}"
-  local -r artifact_name="${2}"
-  local -r image_name="${3}"
+    local -r device_types="${1}"
+    local -r artifact_name="${2}"
+    local -r image_name="${3}"
+    local -r all_device_types="$(for device_type in $device_types; do echo " --device-type $device_type"; done)"
 
-  mender_artifact=deploy/${image_name}.mender
-  log_info "Writing Mender artifact to: ${mender_artifact}"
-  log_info "This can take up to 20 minutes depending on which compression method is used"
+    mender_artifact=deploy/${image_name}.mender
+    log_info "Writing Mender artifact to: ${mender_artifact}"
+    log_info "This can take up to 20 minutes depending on which compression method is used"
 
-  run_and_log_cmd "mender-artifact --compression ${MENDER_ARTIFACT_COMPRESSION} \
+    run_and_log_cmd "mender-artifact --compression ${MENDER_ARTIFACT_COMPRESSION} \
       write rootfs-image \
       --file work/rootfs.img \
       --output-path ${mender_artifact} \
       --artifact-name ${artifact_name} \
-      --device-type ${device_type}"
+      ${all_device_types}"
 }
