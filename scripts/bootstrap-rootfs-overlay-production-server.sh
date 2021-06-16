@@ -17,47 +17,50 @@
 # Exit if any command exits with a non-zero exit status.
 set -o errexit
 
-root_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../" && pwd )
+root_dir=$( cd "$( dirname "${BASH_SOURCE[0]}")/../"  && pwd)
 if [ "${root_dir}" != "${PWD}" ]; then
-  echo "You must execute $(basename $0) from the root directory: ${root_dir}"
-  exit 1
+    echo "You must execute $(basename $0) from the root directory: ${root_dir}"
+    exit 1
 fi
 
 server_url=""
 output_dir=""
-while (( "$#" )); do
-  case "$1" in
-    -o | --output-dir)
-      output_dir="${2}"
-      shift 2
-      ;;
-    -s | --server-url)
-      server_url="${2}"
-      shift 2
-      ;;
-    -S | --server-cert)
-      server_cert="${2}"
-      shift 2
-      ;;
-    *)
-      echo "Sorry but the provided option is not supported: $1"
-      echo "Usage:  $(basename $0) --output-dir ./rootfs_overlay_demo --server-url <your server URL> [--server-cert <path to your server.crt file>]"
-      exit 1
-      ;;
-  esac
+while (("$#")); do
+    case "$1" in
+        -o | --output-dir)
+            output_dir="${2}"
+            shift 2
+            ;;
+        -s | --server-url)
+            server_url="${2}"
+            shift 2
+            ;;
+        -S | --server-cert)
+            server_cert="${2}"
+            shift 2
+            ;;
+        *)
+            echo "Sorry but the provided option is not supported: $1"
+            echo "Usage:  $(basename $0) --output-dir ./rootfs_overlay_demo --server-url <your server URL> [--server-cert <path to your server.crt file>]"
+            exit 1
+            ;;
+    esac
 done
 
 if [ -z "${output_dir}" ]; then
-  echo "Sorry, but you need to provide an output directory using the '-o/--output-dir' option"
-  exit 1
+    echo "Sorry, but you need to provide an output directory using the '-o/--output-dir' option"
+    exit 1
 fi
 
 if [ -z "${server_url}" ]; then
-  echo "Sorry, but you need to provide a server URL using the '-s/--server-url' option"
-  exit 1
+    echo "Sorry, but you need to provide a server URL using the '-s/--server-url' option"
+    exit 1
 fi
 
-[ -e ${output_dir} ] && sudo chown -R $(id -u).$(id -g) ${output_dir}
+if [ -e ${output_dir} ]; then
+    sudo chown -R $(id -u) ${output_dir}
+    sudo chgrp -R $(id -g) ${output_dir}
+fi
 mkdir -p ${output_dir}/etc/mender
 cat <<- EOF > ${output_dir}/etc/mender/mender.conf
 {
@@ -67,10 +70,10 @@ cat <<- EOF > ${output_dir}/etc/mender/mender.conf
 EOF
 
 if [ -n "${server_cert}" ]; then
-  cat <<- EOF >> ${output_dir}/etc/mender/mender.conf
+    cat <<- EOF >> ${output_dir}/etc/mender/mender.conf
   "ServerCertificate": "/etc/mender/server.crt",
 EOF
-  cp -f "${server_cert}" ${output_dir}/etc/mender/server.crt
+    cp -f "${server_cert}" ${output_dir}/etc/mender/server.crt
 fi
 
 cat <<- EOF >> ${output_dir}/etc/mender/mender.conf
@@ -80,6 +83,7 @@ EOF
 
 chmod 600 ${output_dir}/etc/mender/mender.conf
 
-sudo chown -R root.root ${output_dir}
+sudo chown -R 0 ${output_dir}
+sudo chgrp -R 0 ${output_dir}
 
 echo "Configuration file for using Production Mender Server written to: ${output_dir}/etc/mender"

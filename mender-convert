@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 #
-# Copyright 2019 Northern.tech AS
+# Copyright 2021 Northern.tech AS
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,14 +17,17 @@
 source modules/bootstrap.sh
 source modules/cliparser.sh
 source modules/decompressinput.sh
+source modules/testscfg.sh
 
-mkdir -p work
-touch work/convert.log
+export MENDER_CONVERT_LOG_FILE=$(pwd)/${MENDER_CONVERT_LOG_FILE:-logs/convert.log}
+touch ${MENDER_CONVERT_LOG_FILE}
+chown -R --reference=. ${MENDER_CONVERT_LOG_FILE}
 
 ###############################################################################
 #                Declaration of important variables for this file             #
 ###############################################################################
-declare override_extraargs="" # Override arguments passed to the sub-scripts
+declare prepend_extraargs=""  # Default arguments passed to the sub-scripts
+declare append_extraargs=""   # Override arguments passed to the sub-scripts
 declare compression_type=""   # Detected input file compression, also applied to the output
 declare ocfile="./work/override_compression_config"
 declare disk_image=""         # Needed in parse_cli_options, and is passed to decompress_image()
@@ -35,7 +38,7 @@ MENDER_CONVERT_VERSION="${MENDER_CONVERT_VERSION:-}" # Required env variable
 ###############################################################################
 
 function show_help() {
-  cat << EOF
+    cat << EOF
 mender-convert
 
 A tool that takes an existing embedded image (Debian, Ubuntu, Raspbian, etc)
@@ -58,22 +61,21 @@ EOF
 }
 
 function show_version() {
-  echo "Version: ${MENDER_CONVERT_VERSION}"
+    echo "Version: ${MENDER_CONVERT_VERSION}"
 }
 
 function trap_exit() {
-  EXIT_CODE=$?
-  if [[ ${EXIT_CODE} -ne 0 && ${EXIT_CODE} -ne ${FATAL_EXIT_CODE} ]]; then
-    log_error "mender-convert failed"
-    [ -e work/convert.log ] && tac work/convert.log | sed '/DEBUG/q' | tac | sed 's/Running/When running/'
-    log_error "mender-convert exit code: ${EXIT_CODE}"
-  fi
-  mv work/convert.log convert.log
-  sudo rm -rf work
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} -ne 0 && ${EXIT_CODE} -ne ${FATAL_EXIT_CODE} ]]; then
+        log_error "mender-convert failed"
+        [ -e ${MENDER_CONVERT_LOG_FILE} ] && tac ${MENDER_CONVERT_LOG_FILE} | sed '/DEBUG/q' | tac | sed 's/Running/When running/'
+        log_error "mender-convert exit code: ${EXIT_CODE}"
+    fi
+    sudo rm -rf work/*
 }
 
 function trap_term() {
-  echo "Program interrupted by user"
+    echo "Program interrupted by user"
 }
 
 trap trap_term INT TERM
@@ -81,55 +83,57 @@ trap trap_exit EXIT
 
 source modules/git.sh
 
-if [ -z "$MENDER_CONVERT_VERSION" ];then
-  MENDER_CONVERT_VERSION=$(git_mender_convert_version)
+if [ -z "$MENDER_CONVERT_VERSION" ]; then
+    MENDER_CONVERT_VERSION=$(git_mender_convert_version)
 fi
 
 # We only handle a selection of the arguments here, the rest are passed on
 # to the sub-scripts.
 while (("$#")); do
-  case "$1" in
-    -h | --help)
-      show_help
-      exit 0
-      ;;
-    -v | --version)
-      show_version
-      exit 0
-      ;;
-    *)
-      break
-      ;;
-  esac
+    case "$1" in
+        -h | --help)
+            show_help
+            exit 0
+            ;;
+        -v | --version)
+            show_version
+            exit 0
+            ;;
+        *)
+            break
+            ;;
+    esac
 done
 
-mender_convert_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+mender_convert_dir=$( cd "$( dirname "${BASH_SOURCE[0]}")"  && pwd)
 if [ "${mender_convert_dir}" != "${PWD}" ]; then
-  echo "You must execute mender-convert from the root directory: ${mender_convert_dir}"
-  exit 1
+    echo "You must execute mender-convert from the root directory: ${mender_convert_dir}"
+    exit 1
 fi
 
 if [ -z "${MENDER_ARTIFACT_NAME}" ]; then
-  echo "Sorry, it seems that you have not defined MENDER_ARTIFACT_NAME"
-  echo "You can do this with the following command:"
-  echo ""
-  echo -e "\tMENDER_ARTIFACT_NAME=\"release-1\" ./mender-convert"
-  exit 1
+    echo "Sorry, it seems that you have not defined MENDER_ARTIFACT_NAME"
+    echo "You can do this with the following command:"
+    echo ""
+    echo -e "\tMENDER_ARTIFACT_NAME=\"release-1\" ./mender-convert"
+    exit 1
 fi
+
+testscfg_init
 
 parse_cli_options "$@"
 
-uncompressed_disk_image="${disk_image}"
 compression_type=$(compression_type "${disk_image}")
 if [[ ${compression_type} != "none" ]]; then
-  uncompressed_disk_image=$(decompress_image "${disk_image}" "./work")
-  echo "MENDER_COMPRESS_DISK_IMAGE=${compression_type}" > ${ocfile}
-  override_extraargs="--disk-image ${uncompressed_disk_image} --config ${ocfile}"
+    uncompressed_disk_image=$(decompress_image "${disk_image}" "./work")
+    append_extraargs="--disk-image ${uncompressed_disk_image}"
 fi
+echo "MENDER_COMPRESS_DISK_IMAGE=${compression_type}" > ${ocfile}
+prepend_extraargs="--config ${ocfile}"
 
-./mender-convert-extract "$@" ${override_extraargs}
-./mender-convert-modify  "$@" ${override_extraargs}
-./mender-convert-package "$@" ${override_extraargs}
+./mender-convert-extract ${prepend_extraargs} "$@" ${append_extraargs}
+./mender-convert-modify  ${prepend_extraargs} "$@" ${append_extraargs}
+./mender-convert-package ${prepend_extraargs} "$@" ${append_extraargs}
 
 echo "Output Artifacts and images can be found in the deploy directory:"
 ls -1 deploy/*
